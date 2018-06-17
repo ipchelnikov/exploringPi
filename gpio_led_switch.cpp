@@ -1,11 +1,13 @@
 #include <chrono>
-#include <iostream>
-#include <fstream>
 #include <string>
-#include <sstream>
 #include <thread>
+#include <iostream>
 
 #include "gpio.hpp"
+
+const std::string LED_PIN_NUM = "18";
+const std::string BUT_PIN_NUM = "17";
+
 
 int main(int argc, char* argv[])
 {
