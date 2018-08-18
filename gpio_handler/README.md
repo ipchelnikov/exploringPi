@@ -17,4 +17,8 @@ Longer press (~1 sec) terminates the app
 ## Connection example
 Button connect to GPIO17, LED to GPIO18 according to the pinout scheme https://pinout.xyz/pinout/
 
+<<<<<<< HEAD:gpio_handler/README.md
 ![Connection example](https://downloader.disk.yandex.ru/preview/ae60a0c79a0cb5e866792e638979875fac0cb59598a6ca9703f66c23faabf91b/5b23968f/mD2IKnThOcx0abHbGzJeDzjP7HQ2q_LwQs6wOkQlgoJbsLx2Z1IjjPpXDzEfBPxGIA3XZw691RuDRyvJcYlBrw%3D%3D?uid=0&filename=IMG_1306.jpg&disposition=inline&hash=&limit=0&content_type=image%2Fjpeg&tknv=v2&size=1920x966)
+=======
+![Connection example](https://www.dropbox.com/s/jpj3t10l97xomui/Photo%2013-06-2018%2C%2008%2057%2047.jpg)
+>>>>>>> f24f875e4b1dd7a81afedeb5bb9333afcacb5eac:README.md
