@@ -8,6 +8,8 @@
 #include <linux/kobject.h>    // Using kobjects for the sysfs bindings
 #include <linux/kthread.h>    // Using kthreads for the flashing functionality
 #include <linux/delay.h>      // Using this header for the msleep() functio
+#include <linux/mutex.h>
+
 
 // __class_create is available only with GPL license
 MODULE_LICENSE("GPL");
@@ -19,11 +21,26 @@ static struct class*  indicator_class  = NULL; ///< The device-driver class stru
 static struct device* indicator_device = NULL; ///< The device-driver device struct pointer
 
 struct task_struct *flashing_thread;
-const int flashing_interval = 10;
+const int flashing_interval = 1000;
 
 const int pins_number = 12;
-const int gpio_pins[] = { 24, 25, 12, 13, 17, 18,
+const int gpio_pins[] = { 25, 12, 13, 24, 17, 18,
                           27, 22, 23, 05, 06, 19 };
+
+// GPIO_13 - low left
+// GPIO_17 - bottom
+// GPIO_18 - dot
+// GPIO_27 - low right
+// GPIO_22 - middle
+// GPIO_23 - top
+// GPIO_05 - hi left
+// GPIO_06 - hi right
+
+const unsigned int digit_pin_values[10] = { 0x14, 0x77, 0x4c, 0x45, 0x27, 0x85, 0x84, 0x57, 0x4, 0x5 };
+
+struct mutex digits_mutex;
+int digits[4] = {5, 5, 7, 0};
+
 
 static int     dev_open(struct inode *, struct file *);
 static int     dev_release(struct inode *, struct file *);
@@ -50,11 +67,13 @@ static int flash(void* data)
         for(i = 0; i < 4; ++i) {
 
             for(j = 0; j < 8; ++j) {
-                 gpio_set_value(gpio_pins[j+4], pin[i][j]);
+                mutex_lock(&digits_mutex);
+                gpio_set_value(gpio_pins[j+4], digit_pin_values[digits[i]] & ( 0x1 << j ));
+                mutex_unlock(&digits_mutex);
             }
 
             gpio_set_value(gpio_pins[i], 1);
-            msleep(flashing_interval);
+            udelay(flashing_interval);
             gpio_set_value(gpio_pins[i], 0);
 
         }
@@ -116,6 +135,7 @@ static int __init hello_init(void)
         printk(KERN_ALERT "Failed to create flashing thread");
         return PTR_ERR(flashing_thread);
     }
+    mutex_init(&digits_mutex);
 
     return 0;
 }
@@ -140,7 +160,6 @@ static void __exit hello_exit(void)
     printk(KERN_INFO "Goodbye from the indicator driver!\n");
 }
 
-
 static int dev_open(struct inode *inodep, struct file *filep)
 {
     printk(KERN_INFO "Device opened\n");
@@ -161,7 +180,15 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offst)
 {
+    int i = 0;
     printk(KERN_INFO "Received message: %s\n", buffer);
+
+    if(len == 4) { 
+        mutex_lock(&digits_mutex);
+        for(i = 0; i < 4; ++i)
+            digits[i] = buffer[i];
+        mutex_unlock(&digits_mutex);
+    }
     return 0;
 }
 
