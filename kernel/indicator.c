@@ -1,6 +1,7 @@
-#include <linux/module.h>
+#include "indicator.h"
+
 #include <linux/kernel.h>
-#include <linux/device.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
@@ -9,7 +10,8 @@
 #include <linux/kthread.h>    // Using kthreads for the flashing functionality
 #include <linux/delay.h>      // Using this header for the msleep() functio
 #include <linux/mutex.h>
-#include <linux/string.h>     // for atoi
+#include <linux/string.h>     // for char string to digit conversion
+
 
 // __class_create is available only with GPL license
 MODULE_LICENSE("GPL");
@@ -41,19 +43,6 @@ const unsigned int digit_pin_values[11] = { 0x14, 0x77, 0x4c, 0x45, 0x27, 0x85, 
 struct mutex digits_mutex;
 int digits[4] = {10, 10, 10, 10};
 
-
-static int     dev_open(struct inode *, struct file *);
-static int     dev_release(struct inode *, struct file *);
-static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
-static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
-
-static struct file_operations fops = {
-    .open = dev_open,
-    .read = dev_read,
-    .write = dev_write,
-    .release = dev_release,
-};
-
 static int flash(void* data)
 {
     int i, j;
@@ -82,7 +71,7 @@ static int flash(void* data)
     return 0;
 }
 
-static int __init hello_init(void)
+static int __init indicator_init(void)
 {
     int i = 0;
 
@@ -140,7 +129,7 @@ static int __init hello_init(void)
     return 0;
 }
 
-static void __exit hello_exit(void)
+static void __exit indicator_exit(void)
 {
     int i = 0;
 
@@ -204,5 +193,5 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     return 0;
 }
 
-module_init(hello_init);
-module_exit(hello_exit);
+module_init(indicator_init);
+module_exit(indicator_exit);
