@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+*.cmd
+*.symvers
+*.ko
+*.mod.c
+
+modules.order
+test
