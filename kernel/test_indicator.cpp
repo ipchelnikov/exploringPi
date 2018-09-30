@@ -7,7 +7,9 @@
 #include <fcntl.h>
 
 #include <iostream>
+#include <iomanip>
 #include <chrono>
+#include <ctime>
 #include <thread>
 
 int main()
@@ -26,10 +28,12 @@ int main()
     while( true )
     {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        ++count;
-        //std::cout << std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()) << std::endl;
+        
+        auto time_now = std::chrono::system_clock::now();
+        std::time_t time_now_t = std::chrono::system_clock::to_time_t(time_now);
 
-        sprintf(string_to_send,"%d",count);
+        std::tm now_tm = *std::localtime(&time_now_t);
+        std::strftime(string_to_send, sizeof(string_to_send), "%H%M", &now_tm);
 
         int ret = write(fd, string_to_send, strlen(string_to_send));
     }

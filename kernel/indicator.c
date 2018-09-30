@@ -38,7 +38,8 @@ const int gpio_pins[] = { 25, 12, 13, 24, 17, 18,
 // GPIO_05 - hi left
 // GPIO_06 - hi right
 
-const unsigned int digit_pin_values[11] = { 0x14, 0x77, 0x4c, 0x45, 0x27, 0x85, 0x84, 0x57, 0x4, 0x5, 0xFF };
+// first ten are digest, 0xFF - all disabled, 0x40
+const unsigned int digit_pin_values[11] = { 0x14, 0x77, 0x4c, 0x45, 0x27, 0x85, 0x84, 0x57, 0x4, 0x5, 0xFF }; 
 
 struct mutex digits_mutex;
 int digits[4] = {10, 10, 10, 10};
@@ -61,11 +62,18 @@ static int flash(void* data)
                 mutex_unlock(&digits_mutex);
             }
 
+            // Blink the middle dot 
+            if (i == 1)
+            {
+                gpio_set_value(18, 0);
+            }
+
             gpio_set_value(gpio_pins[i], 1);
             udelay(flashing_interval);
             gpio_set_value(gpio_pins[i], 0);
 
         }
+
     }
 
     return 0;
@@ -172,7 +180,6 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     int val = 0;
     printk(KERN_INFO "Received message: %s\n", buffer);
 
-    //val = atoi(buffer);
     val = simple_strtol(buffer, NULL, 10);
 
     mutex_lock(&digits_mutex);
