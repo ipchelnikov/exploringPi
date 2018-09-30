@@ -46,7 +46,7 @@ int digits[4] = {10, 10, 10, 10};
 
 static int flash(void* data)
 {
-    int i, j;
+    int i, j, count = 0;
 
     while(1)
     {
@@ -62,10 +62,17 @@ static int flash(void* data)
                 mutex_unlock(&digits_mutex);
             }
 
-            // Blink the middle dot 
+            // Blink the middle dot for time 
             if (i == 1)
             {
-                gpio_set_value(18, 0);
+                // light / sleep interval - 100 cicles
+                if(count < 200)
+                    gpio_set_value(27, 0);
+
+                else if(count == 400)
+                    count = 0;
+                
+                ++count;
             }
 
             gpio_set_value(gpio_pins[i], 1);
