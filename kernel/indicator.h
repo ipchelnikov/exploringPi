@@ -15,6 +15,6 @@ static struct file_operations fops = {
     .release = dev_release,
 };
 
-static int flash(void*);
+static int  flash(void*);
 
 #endif // KERNEL_INDICATOR_H_

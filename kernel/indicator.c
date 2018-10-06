@@ -38,15 +38,18 @@ const int gpio_pins[] = { 25, 12, 13, 24, 17, 18,
 // GPIO_05 - hi left
 // GPIO_06 - hi right
 
-// first ten are digest, 0xFF - all disabled, 0x40
-const unsigned int digit_pin_values[11] = { 0x14, 0x77, 0x4c, 0x45, 0x27, 0x85, 0x84, 0x57, 0x4, 0x5, 0xFF }; 
+// first ten are digest, 0xFF - all disabled
+const unsigned int digit_pin_values[12] = { 0x14, 0x77, 0x4c, 0x45, 0x27, 0x85, 0x84, 0x57, 0x4, 0x5, 0xFF, 0xE8 };
+
+const int EMPTY     = 10;
+const int c_symbol  = 11;
 
 struct mutex digits_mutex;
 int digits[4] = {10, 10, 10, 10};
 
 static int flash(void* data)
 {
-    int i, j, count = 0;
+    int i = 0, j =0, count = 0;
 
     while(1)
     {
@@ -55,32 +58,33 @@ static int flash(void* data)
         }
 
         for(i = 0; i < 4; ++i) {
-
             for(j = 0; j < 8; ++j) {
                 mutex_lock(&digits_mutex);
-                gpio_set_value(gpio_pins[j+4], digit_pin_values[digits[i]] & ( 0x1 << j ));
+                
+                gpio_set_value(gpio_pins[j+4],
+                        digit_pin_values[digits[i]] & ( 0x1 << j ));
+
                 mutex_unlock(&digits_mutex);
             }
 
             // Blink the middle dot for time 
-            if (i == 1)
+            // It is time if the first diget is not EMPTY
+            if (digits[0] != EMPTY && i == 1)
             {
                 // light / sleep interval - 100 cicles
                 if(count < 200)
                     gpio_set_value(27, 0);
-
                 else if(count == 400)
                     count = 0;
-                
+
                 ++count;
             }
 
             gpio_set_value(gpio_pins[i], 1);
             udelay(flashing_interval);
             gpio_set_value(gpio_pins[i], 0);
-
         }
-
+    
     }
 
     return 0;
@@ -185,25 +189,45 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offst)
 {
     int val = 0;
+
     printk(KERN_INFO "Received message: %s\n", buffer);
 
-    val = simple_strtol(buffer, NULL, 10);
+    if(buffer[0] == 't') {
 
-    mutex_lock(&digits_mutex);
+        val = simple_strtol(buffer+1, NULL, 10);
+        
+        mutex_lock(&digits_mutex);
+        
+        digits[0] = val/1000;
+        val -= 1000*(val/1000);
+        
+        digits[1] = val/100;
+        val -= 100*(val/100);
+        
+        digits[2] = val/10;
+        val -= 10*(val/10);
+        
+        digits[3] = val;
+        
+        mutex_unlock(&digits_mutex);
+    }
+    else if (buffer[0] == 'c') {
 
-    digits[0] = val/1000;
-    val -= 1000*(val/1000);
+        val = simple_strtol(buffer+1, NULL, 10);
 
-    digits[1] = val/100;
-    val -= 100*(val/100);
+        mutex_lock(&digits_mutex);
 
-    digits[2] = val/10;
-    val -= 10*(val/10);
+        digits[0] = EMPTY;      // not used
+        digits[1] = val/10;
+        digits[2] = val - 10*(val/10);
+        digits[3] = c_symbol;   // celsium
 
-    digits[3] = val;
+        mutex_unlock(&digits_mutex);
+    }
+    else {
+        printk(KERN_ALERT "Message format error\n");
+    }
 
-    mutex_unlock(&digits_mutex);
-    
     return 0;
 }
 
