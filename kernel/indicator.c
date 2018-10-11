@@ -46,10 +46,12 @@ const int c_symbol  = 11;
 
 struct mutex digits_mutex;
 int digits[4] = {10, 10, 10, 10};
+struct mutex dot_mutex;
+bool dots [4] = {0,  0,  0,  0};
 
 static int flash(void* data)
 {
-    int i = 0, j =0, count = 0;
+    int i = 0, j =0;
 
     while(1)
     {
@@ -66,7 +68,7 @@ static int flash(void* data)
 
                 mutex_unlock(&digits_mutex);
             }
-
+/*
             // Blink the middle dot for time 
             // It is time if the first diget is not EMPTY
             if (digits[0] != EMPTY && i == 1)
@@ -79,6 +81,12 @@ static int flash(void* data)
 
                 ++count;
             }
+*/
+            mutex_unlock(&dot_mutex);
+            if(dots[i])
+                gpio_set_value(27, 0);
+
+            mutex_unlock(&dot_mutex);
 
             gpio_set_value(gpio_pins[i], 1);
             udelay(flashing_interval);
@@ -144,6 +152,7 @@ static int __init indicator_init(void)
         return PTR_ERR(flashing_thread);
     }
     mutex_init(&digits_mutex);
+    mutex_init(&dot_mutex);
 
     return 0;
 }
@@ -210,6 +219,13 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
         digits[3] = val;
         
         mutex_unlock(&digits_mutex);
+
+        mutex_lock(&dot_mutex);
+        dots[0] = 0;
+        dots[1] = 1;
+        dots[2] = 0;
+        dots[3] = 0;
+        mutex_lock(&dot_mutex);
     }
     else if (buffer[0] == 'c') {
 
@@ -217,12 +233,24 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 
         mutex_lock(&digits_mutex);
 
-        digits[0] = EMPTY;      // not used
+        digits[0] = val/100;
+        val -= 100*(val/100);
+        
         digits[1] = val/10;
-        digits[2] = val - 10*(val/10);
+        val -= 10*(val/10);
+
+        digits[2] = val;
+
         digits[3] = c_symbol;   // celsium
 
         mutex_unlock(&digits_mutex);
+
+        mutex_lock(&dot_mutex);
+        dots[0] = 0;
+        dots[1] = 1;
+        dots[2] = 0;
+        dots[3] = 1;
+        mutex_lock(&dot_mutex);
     }
     else {
         printk(KERN_ALERT "Message format error\n");

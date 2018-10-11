@@ -63,11 +63,11 @@ int main()
         else if(disply_current == disply_temp)
         {
             string_to_send[0] = 'c';
-            string_to_send[3] = '\0';
+            string_to_send[4] = '\0';
             
             // Magic num 69 is the temerature position in the driver file
             w1_stream.seekg(69, std::ios::beg);
-            w1_stream.read(string_to_send+1,2);
+            w1_stream.read(string_to_send+1,3);
         }
         int ret = write(fd, string_to_send, strlen(string_to_send));
         std::this_thread::sleep_for(std::chrono::seconds(1));

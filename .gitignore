@@ -37,4 +37,4 @@
 *.mod.c
 
 modules.order
-test
+indicator_data_provider
