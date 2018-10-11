@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# On raspbian,  append the script to
+# /etc/rc.local to launch it on boot 
+
 echo "Starting disply..."
 
 # install kernel driver
