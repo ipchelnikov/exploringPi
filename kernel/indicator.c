@@ -29,70 +29,95 @@ const int pins_number = 12;
 const int gpio_pins[] = { 25, 12, 13, 24, 17, 18,
                           27, 22, 23, 05, 06, 19 };
 
-// GPIO_13 - low left
-// GPIO_17 - bottom
-// GPIO_18 - dot
-// GPIO_27 - low right
-// GPIO_22 - middle
-// GPIO_23 - top
-// GPIO_05 - hi left
-// GPIO_06 - hi right
+// First four are digit pins, then:
+//      GPIO_13 - low left
+//      GPIO_17 - bottom
+//      GPIO_18 - dot
+//      GPIO_27 - low right
+//      GPIO_22 - middle
+//      GPIO_23 - top
+//      GPIO_05 - hi left
+//      GPIO_06 - hi right
 
-// first ten are digest, 0xFF - all disabled
-const unsigned int digit_pin_values[12] = { 0x14, 0x77, 0x4c, 0x45, 0x27, 0x85, 0x84, 0x57, 0x4, 0x5, 0xFF, 0xE8 };
 
-const int EMPTY     = 10;
-const int c_symbol  = 11;
+struct mutex symbols_mutex;
+int symbols[4]  = {10, 10, 10, 10};
+bool dots[4]    = {0,  0,  0,  0};
 
-struct mutex digits_mutex;
-int digits[4] = {10, 10, 10, 10};
-struct mutex dot_mutex;
-bool dots [4] = {0,  0,  0,  0};
+static int get_symbol_pins(int symbol)
+{
+    int digit_pin_val;
+
+    switch( symbol )
+    {
+        case '0':
+            digit_pin_val = 0x14;
+            break;
+        case '1':
+            digit_pin_val = 0x77;
+            break;
+        case '2':
+            digit_pin_val = 0x4c;
+            break;
+        case '3':
+            digit_pin_val = 0x45;
+            break;
+        case '4':
+            digit_pin_val = 0x27;
+            break;
+        case '5':
+            digit_pin_val = 0x85;
+            break;
+        case '6':            
+            digit_pin_val = 0x84;
+            break;
+        case '7':
+            digit_pin_val = 0x57;
+            break;
+        case '8':
+            digit_pin_val = 0x4;
+            break;
+        case '9':
+            digit_pin_val = 0x5;
+            break;
+        case 'c':
+            digit_pin_val = 0xE8;
+            break;
+        default:
+            printk(KERN_ALERT "Message format error\n");
+            digit_pin_val = 0xFF;
+    }
+
+    return digit_pin_val;
+}
 
 static int flash(void* data)
 {
-    int i = 0, j =0;
+    int i = 0, j = 0;
+    int digit_pin_val = 0;
 
     while(1)
     {
-        if(kthread_should_stop()) {
+        if(kthread_should_stop())
             do_exit(0);
-        }
 
+        mutex_lock(&symbols_mutex);
         for(i = 0; i < 4; ++i) {
             for(j = 0; j < 8; ++j) {
-                mutex_lock(&digits_mutex);
-                
+                digit_pin_val = get_symbol_pins(symbols[i]);
+
                 gpio_set_value(gpio_pins[j+4],
-                        digit_pin_values[digits[i]] & ( 0x1 << j ));
-
-                mutex_unlock(&digits_mutex);
+                        digit_pin_val & ( 0x1 << j ));
             }
-/*
-            // Blink the middle dot for time 
-            // It is time if the first diget is not EMPTY
-            if (digits[0] != EMPTY && i == 1)
-            {
-                // light / sleep interval - 100 cicles
-                if(count < 200)
-                    gpio_set_value(27, 0);
-                else if(count == 400)
-                    count = 0;
-
-                ++count;
-            }
-*/
-            mutex_unlock(&dot_mutex);
+            
             if(dots[i])
                 gpio_set_value(27, 0);
-
-            mutex_unlock(&dot_mutex);
 
             gpio_set_value(gpio_pins[i], 1);
             udelay(flashing_interval);
             gpio_set_value(gpio_pins[i], 0);
         }
-    
+        mutex_unlock(&symbols_mutex);
     }
 
     return 0;
@@ -151,8 +176,7 @@ static int __init indicator_init(void)
         printk(KERN_ALERT "Failed to create flashing thread");
         return PTR_ERR(flashing_thread);
     }
-    mutex_init(&digits_mutex);
-    mutex_init(&dot_mutex);
+    mutex_init(&symbols_mutex);
 
     return 0;
 }
@@ -197,65 +221,19 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offst)
 {
-    int val = 0;
+    int i;
 
     printk(KERN_INFO "Received message: %s\n", buffer);
 
-    if(buffer[0] == 't') {
+    mutex_lock(&symbols_mutex);
 
-        val = simple_strtol(buffer+1, NULL, 10);
-        
-        mutex_lock(&digits_mutex);
-        
-        digits[0] = val/1000;
-        val -= 1000*(val/1000);
-        
-        digits[1] = val/100;
-        val -= 100*(val/100);
-        
-        digits[2] = val/10;
-        val -= 10*(val/10);
-        
-        digits[3] = val;
-        
-        mutex_unlock(&digits_mutex);
-
-        mutex_lock(&dot_mutex);
-        dots[0] = 0;
-        dots[1] = 1;
-        dots[2] = 0;
-        dots[3] = 0;
-        mutex_lock(&dot_mutex);
-    }
-    else if (buffer[0] == 'c') {
-
-        val = simple_strtol(buffer+1, NULL, 10);
-
-        mutex_lock(&digits_mutex);
-
-        digits[0] = val/100;
-        val -= 100*(val/100);
-        
-        digits[1] = val/10;
-        val -= 10*(val/10);
-
-        digits[2] = val;
-
-        digits[3] = c_symbol;   // celsium
-
-        mutex_unlock(&digits_mutex);
-
-        mutex_lock(&dot_mutex);
-        dots[0] = 0;
-        dots[1] = 1;
-        dots[2] = 0;
-        dots[3] = 1;
-        mutex_lock(&dot_mutex);
-    }
-    else {
-        printk(KERN_ALERT "Message format error\n");
+    for(i = 0; i < 4; i++)
+    {
+        symbols[i] = buffer[i]&0x7F;
+        dots[i] = buffer[i]&0x80;
     }
 
+    mutex_unlock(&symbols_mutex);
     return 0;
 }
 
