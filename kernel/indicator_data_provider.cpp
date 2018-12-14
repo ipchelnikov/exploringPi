@@ -36,7 +36,7 @@ int main()
 
     while( true )
     {
-        // TODO! REplace this with ticks in swparate thread
+        // TODO! REplace this with ticks in separate thread
         //
         static int count = 0;
         if(count == 10)
